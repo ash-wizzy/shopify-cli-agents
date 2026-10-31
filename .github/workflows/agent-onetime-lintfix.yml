@@ -1,0 +1,43 @@
+name: One-time agent lint auto-fix
+
+on:
+  push:
+    branches: [agent/restore-restricted-cli]
+    paths: [.github/workflows/agent-onetime-lintfix.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  lintfix:
+    if: github.repository == 'ash-wizzy/shopify-cli-agents'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format custom source code
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm exec eslint --fix \
+            packages/cli/src/index.ts \
+            packages/theme/src/index.ts \
+            packages/theme/src/cli/services/push.ts \
+            packages/theme/src/cli/services/push.test.ts \
+            packages/theme/src/cli/services/agent-push-policy.ts \
+            packages/theme/src/cli/services/agent-push-policy.test.ts \
+            packages/theme/src/cli/utilities/theme-selector.ts \
+            packages/theme/src/cli/utilities/theme-selector.test.ts \
+            packages/theme/src/cli/utilities/theme-uploader.ts
+          git diff --check
+          git add packages/cli/src/index.ts packages/theme/src
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "style: apply upstream eslint and prettier rules to agent changes"
+            git push origin HEAD:refs/heads/agent/restore-restricted-cli
+          fi
