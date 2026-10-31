@@ -14,14 +14,14 @@ root_commands = re.search(r'const AGENT_ALLOWED_COMMANDS = new Set\(\[([\s\S]*?)
 assert root_commands, 'Missing root command allowlist'
 allowed = set(re.findall(r"'([^']+)'", root_commands.group(1)))
 expected = {'help','version','auth:login','auth:logout','theme:init','theme:check','theme:language-server',
-            'theme:package','theme:list','theme:info','theme:pull','theme:push'}
+            'theme:package','theme:list','theme:info','theme:pull','theme:push','store:list'}
 assert allowed == expected, f'Unexpected root commands: {allowed ^ expected}'
 assert 'Object.entries(ALL_COMMANDS).filter(([command]) => AGENT_ALLOWED_COMMANDS.has(command))' in root
 
 block = re.search(r'// AGENT THEME COMMANDS[\s\S]*?const COMMANDS = \{([\s\S]*?)\n\}', theme)
 assert block, 'Missing theme command registration boundary'
 registered = set(re.findall(r"'([^']+)':", block.group(1)))
-assert registered == expected - {'help','version','auth:login','auth:logout'}, f'Unexpected theme commands: {registered}'
+assert registered == expected - {'help','version','auth:login','auth:logout','store:list'}, f'Unexpected theme commands: {registered}'
 
 assert push.count('assertAgentSafePushFlags(flags)') >= 2, 'CLI and exported push flag guards missing'
 assert 'await assertUnpublishedTheme(theme.id, session)' in push, 'Fresh pre-upload role verification missing'
@@ -40,6 +40,13 @@ manifest_commands = set(manifest['commands'])
 assert manifest_commands == expected, f'Unsafe Oclif command manifest entries: {manifest_commands ^ expected}'
 assert 'theme:publish' not in manifest['commands']
 assert 'theme:push' in manifest['commands']
+assert 'store:list' in allowed and 'store:list' in manifest_commands, 'Read-only store listing missing'
+assert 'store:list' in root, 'Store list missing from root allowlist'
+for command in ('store:delete','store:execute','store:auth','store:create:dev','store:create:preview','store:stripe-auth','store:bulk:execute'):
+    assert command not in allowed and command not in manifest_commands, f'Unsafe store command enabled: {command}'
+store_list = (r / 'packages/store/src/cli/commands/store/list.ts').read_text()
+assert 'await listStores({' in store_list, 'Store list no longer invokes expected read-only listing service'
+
 for auth_command in ('auth:login', 'auth:logout'):
     assert auth_command in allowed and auth_command in manifest_commands, f'Auth command missing: {auth_command}'
 
