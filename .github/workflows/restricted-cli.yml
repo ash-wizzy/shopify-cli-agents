@@ -1,0 +1,91 @@
+name: Restricted CLI verification
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify restricted command registry
+        run: python3 agent-security/verify-policy.py .
+      - name: Ensure upstream source and license are present
+        run: |
+          test -f LICENSE
+          test -f packages/cli/package.json
+          test -f packages/theme/src/cli/services/push.ts
+
+  build:
+    runs-on: ubuntu-latest
+    needs: security-policy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: |
+          corepack enable
+          corepack pnpm install --frozen-lockfile
+      - name: Build CLI
+        run: corepack pnpm nx build cli
+      - name: Type-check theme and CLI
+        run: corepack pnpm nx run-many -t type-check -p theme cli
+      - name: Lint agent-modified TypeScript
+        shell: bash
+        run: |
+          corepack pnpm exec eslint \
+            packages/cli/src/index.ts \
+            packages/theme/src/index.ts \
+            packages/theme/src/cli/services/push.ts \
+            packages/theme/src/cli/services/push.test.ts \
+            packages/theme/src/cli/services/agent-push-policy.ts \
+            packages/theme/src/cli/services/agent-push-policy.test.ts \
+            packages/theme/src/cli/utilities/theme-selector.ts \
+            packages/theme/src/cli/utilities/theme-selector.test.ts \
+            packages/theme/src/cli/utilities/theme-uploader.ts
+      - name: Run unpublished-only policy regression tests
+        run: corepack pnpm exec vitest run packages/theme/src/cli/services/agent-push-policy.test.ts packages/theme/src/cli/services/push.test.ts packages/theme/src/cli/utilities/theme-selector.test.ts
+      - name: Allow only approved commands in compiled CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          node packages/cli/bin/run.js theme check --help >/dev/null
+          node packages/cli/bin/run.js theme package --help >/dev/null
+          node packages/cli/bin/run.js theme push --help >/dev/null
+
+          while IFS='|' read -r group command; do
+            if node packages/cli/bin/run.js "$group" "$command" --help > /tmp/denied-command.log 2>&1; then
+              cat /tmp/denied-command.log
+              echo "FAIL: forbidden command is callable: $group $command"
+              exit 1
+            fi
+          done <<'DENIED'
+          theme|publish
+          theme|delete
+          theme|dev
+          theme|share
+          theme|duplicate
+          theme|rename
+          theme|preview
+          app|deploy
+          DENIED
+
+      - name: Verify published-target switches are refused without store credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for flag in --live --allow-live --publish --development; do
+            if node packages/cli/bin/run.js theme push --theme 123 --store example.myshopify.com "$flag" --no-input >/tmp/push-policy.log 2>&1; then
+              cat /tmp/push-policy.log
+              echo "FAIL: forbidden flag was allowed: $flag"
+              exit 1
+            fi
+          done

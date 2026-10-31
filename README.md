@@ -1,3 +1,30 @@
+# Shopify CLI Agents — restricted AI-agent build
+
+> **Experimental fork, not official Shopify CLI.** This build restricts theme pushes to unpublished themes, and removes publishing and other unsafe operations from the CLI and its generated Oclif manifest. **Do not give AI agents production-write Shopify credentials.** Command restrictions alone are not an authorization boundary.
+
+This repository maintains a public, independent source copy of [Shopify/cli](https://github.com/Shopify/cli), pinned at `d92c0a0d62f149c2d458a98dbaf89f7cc2e7669d`, with agent-specific restrictions.
+
+**Allowed:** `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, **`theme push` (unpublished themes only)**, `version`, `help`.
+
+**Disabled:** theme publishing, live-theme writes, development-theme uploads, theme deletion/rename, preview/share, app/store mutations and plugin commands. Push checks Shopify's current unpublished role before each write batch. For a security rationale and deployment roadmap, see [agent-security/README.md](agent-security/README.md).
+
+## Build the restricted CLI
+
+```bash
+corepack pnpm install --frozen-lockfile
+corepack pnpm nx build cli
+python3 agent-security/verify-policy.py .
+node packages/cli/bin/run.js theme check --help
+```
+
+**Push examples:** in an interactive terminal run `node packages/cli/bin/run.js theme push --store your-store.myshopify.com` to choose an unpublished theme. In an agent or CI session specify `--theme THEME_ID --store your-store.myshopify.com` or create a new draft using `--unpublished --theme NAME --store your-store.myshopify.com`. `--live`, `--allow-live`, `--publish` and `--development` are prohibited, including their environment-variable equivalents. The CLI is a best-effort guard, not a credential-level guarantee if an unpublished theme is published concurrently.
+
+Use `node packages/cli/bin/run.js` explicitly to run this fork; `shopify` on `PATH` may be the unrestricted official CLI. The build requires Node.js >=22.12.0. Deployments must use a separate trusted process with human approval and isolated write credentials.
+
+---
+
+## Original upstream README
+
 <img src="https://github.com/Shopify/cli/blob/main/assets/logo.png?raw=true" width="150"/>
 
 # Shopify CLI

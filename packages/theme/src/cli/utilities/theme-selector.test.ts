@@ -84,6 +84,33 @@ describe('findOrSelectTheme', () => {
     expect(theme).toBe(storeThemes[1])
   })
 
+  test('shows only unpublished themes when restricted by the agent', async () => {
+    vi.mocked(fetchStoreThemes).mockResolvedValue(storeThemes)
+    vi.mocked(renderAutocompletePrompt).mockResolvedValue(() => Promise.resolve(storeThemes[0]))
+
+    await findOrSelectTheme(session, {
+      filter: {},
+      allowedRoles: ['unpublished'],
+    })
+
+    const options = vi.mocked(renderAutocompletePrompt).mock.calls.at(-1)![0]
+    const labels = options.choices.map((choice) => choice.label)
+    expect(labels).toContain('theme 1')
+    expect(labels).not.toContain('theme 3')
+    expect(labels).not.toContain('theme 7')
+    expect(labels).not.toContain('theme 8')
+  })
+
+  test('rejects direct selection of a live theme when unpublished-only is required', async () => {
+    vi.mocked(fetchStoreThemes).mockResolvedValue(storeThemes)
+    await expect(
+      findOrSelectTheme(session, {
+        filter: {theme: '3'},
+        allowedRoles: ['unpublished'],
+      }),
+    ).rejects.toThrow(/No themes/)
+  })
+
   test('returns a new theme when users select that option', async () => {
     // Given
     const expectedTheme = mockTheme(42, 'unpublished')

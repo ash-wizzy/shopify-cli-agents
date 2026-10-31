@@ -13,6 +13,8 @@ import {recordEvent} from '@shopify/cli-kit/node/analytics'
 import {Writable} from 'stream'
 
 interface UploadOptions {
+  /** Revalidate the target role before each mutation (including retries). */
+  assertCanWrite?: () => Promise<void>
   nodelete?: boolean
   deferPartialWork?: boolean
   backgroundWorkCatch?: (error: Error) => never
@@ -55,12 +57,14 @@ export function uploadTheme(
   const getProgress = (params: {current: number; total: number}) =>
     params.total === 0 ? `[100%]` : `[${Math.round((params.current / params.total) * 100)}%]`
 
-  const themeCreationPromise = ensureThemeCreation(theme, session, remoteChecksums).then((results) => {
-    results.forEach(recordResult)
-  })
+  const themeCreationPromise = ensureThemeCreation(theme, session, remoteChecksums, options.assertCanWrite).then(
+    (results) => {
+      results.forEach(recordResult)
+    },
+  )
 
   const uploadJobPromise = Promise.all([themeFileSystem.ready(), themeCreationPromise]).then(() =>
-    buildUploadJob(remoteChecksums, themeFileSystem, theme, session, recordResult),
+    buildUploadJob(remoteChecksums, themeFileSystem, theme, session, recordResult, options.assertCanWrite),
   )
 
   const deleteJobPromise = uploadJobPromise
@@ -164,7 +168,7 @@ function buildDeleteJob(
   themeFileSystem: ThemeFileSystem,
   theme: Theme,
   session: AdminSession,
-  options: Pick<UploadOptions, 'nodelete'>,
+  options: Pick<UploadOptions, 'nodelete' | 'assertCanWrite'>,
   recordResult: (result: Result) => void,
 ): SyncJob {
   if (options.nodelete) {
@@ -182,11 +186,14 @@ function buildDeleteJob(
   const deleteBatches = []
   for (let i = 0; i < orderedFiles.length; i += MAX_BATCH_FILE_COUNT) {
     const batch = orderedFiles.slice(i, i + MAX_BATCH_FILE_COUNT)
-    const promise = deleteThemeAssets(
-      theme.id,
-      batch.map((file) => file.key),
-      session,
-    ).then((results) => {
+    const promise = (async () => {
+      await options.assertCanWrite?.()
+      return deleteThemeAssets(
+        theme.id,
+        batch.map((file) => file.key),
+        session,
+      )
+    })().then((results) => {
       results.forEach((result) => {
         recordResult(result)
         if (!result.success) {
@@ -249,11 +256,17 @@ export const MINIMUM_THEME_ASSETS = [
  * requests for _shopify_essential can work. We upload the minimum assets
  * here to make it faster.
  */
-async function ensureThemeCreation(theme: Theme, session: AdminSession, remoteChecksums: Checksum[]) {
+async function ensureThemeCreation(
+  theme: Theme,
+  session: AdminSession,
+  remoteChecksums: Checksum[],
+  assertCanWrite?: () => Promise<void>,
+) {
   const remoteAssetKeys = new Set(remoteChecksums.map((checksum) => checksum.key))
   const missingAssets = MINIMUM_THEME_ASSETS.filter(({key}) => !remoteAssetKeys.has(key))
 
   if (missingAssets.length > 0) {
+    await assertCanWrite?.()
     return bulkUploadThemeAssets(theme.id, missingAssets, session)
   }
   return []
@@ -270,6 +283,7 @@ function buildUploadJob(
   theme: Theme,
   session: AdminSession,
   recordResult: (result: Result) => void,
+  assertCanWrite?: () => Promise<void>,
 ): SyncJob {
   const filesToUpload = selectUploadableFiles(themeFileSystem, remoteChecksums)
 
@@ -285,7 +299,7 @@ function buildUploadJob(
     if (fileType.length === 0) return Promise.resolve()
     return Promise.all(
       createBatches(fileType).map((batch) =>
-        uploadBatch(batch, themeFileSystem, session, theme.id, recordResult).then(() => {
+        uploadBatch(batch, themeFileSystem, session, theme.id, recordResult, assertCanWrite).then(() => {
           progress.current += batch.length
           batch.forEach((file) => themeFileSystem.unsyncedFileKeys.delete(file.key))
         }),
@@ -432,6 +446,7 @@ async function uploadBatch(
   session: AdminSession,
   themeId: number,
   recordResult: (result: Result) => void,
+  assertCanWrite?: () => Promise<void>,
 ) {
   const uploadParams = batch.map((file) => {
     const value = localThemeFileSystem.files.get(file.key)?.value
@@ -443,7 +458,7 @@ async function uploadBatch(
     }
   })
   outputDebug(`Uploading the following files:\n${batch.map((file) => `-${file.key}`).join('\n')}`)
-  const results = await handleBulkUpload(uploadParams, themeId, session)
+  const results = await handleBulkUpload(uploadParams, themeId, session, 0, assertCanWrite)
   results.forEach((result) => {
     recordResult(result)
     updateUploadErrors(result, localThemeFileSystem, themeId)
@@ -465,6 +480,7 @@ async function handleBulkUpload(
   themeId: number,
   session: AdminSession,
   count = 0,
+  assertCanWrite?: () => Promise<void>,
 ): Promise<Result[]> {
   if (uploadParams.length === 0) {
     return []
@@ -476,6 +492,7 @@ async function handleBulkUpload(
     )
   }
 
+  await assertCanWrite?.()
   const results = await bulkUploadThemeAssets(themeId, uploadParams, session)
   outputDebug(
     `File Upload Results:\n${results
@@ -488,7 +505,14 @@ async function handleBulkUpload(
     outputDebug(
       `The following files failed to upload:\n${failedUploadResults.map((param) => `-${param.key}`).join('\n')}`,
     )
-    const failedResults = await handleFailedUploads(failedUploadResults, uploadParams, themeId, session, count)
+    const failedResults = await handleFailedUploads(
+      failedUploadResults,
+      uploadParams,
+      themeId,
+      session,
+      count,
+      assertCanWrite,
+    )
     return results.concat(failedResults)
   }
   return results
@@ -500,6 +524,7 @@ async function handleFailedUploads(
   themeId: number,
   session: AdminSession,
   count: number,
+  assertCanWrite?: () => Promise<void>,
 ): Promise<Result[]> {
   const failedUploadsSet = new Set(failedUploadResults.map((result) => result.key))
   const failedUploadParams = uploadParams.filter((param) => failedUploadsSet.has(param.key))
@@ -516,7 +541,7 @@ async function handleFailedUploads(
   }
 
   recordEvent(`theme-service:upload-failed-retry:${failedUploadParams.length}`)
-  return handleBulkUpload(failedUploadParams, themeId, session, count + 1)
+  return handleBulkUpload(failedUploadParams, themeId, session, count + 1, assertCanWrite)
 }
 
 function reportFailedUploads(uploadResults: Map<string, Result>, environment?: string) {
