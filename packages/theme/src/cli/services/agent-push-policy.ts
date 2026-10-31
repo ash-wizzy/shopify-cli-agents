@@ -4,7 +4,7 @@ import {AbortError} from '@shopify/cli-kit/node/error'
 import type {AdminSession} from '@shopify/cli-kit/node/session'
 import type {Theme} from '@shopify/cli-kit/node/themes/types'
 
-export interface AgentPushFlags {
+interface AgentPushFlags {
   live?: boolean
   allowLive?: boolean
   publish?: boolean
