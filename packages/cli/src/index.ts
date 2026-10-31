@@ -186,6 +186,7 @@ const AGENT_ALLOWED_COMMANDS = new Set([
   'theme:push',
 ])
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const COMMANDS: any = Object.fromEntries(
   Object.entries(ALL_COMMANDS).filter(([command]) => AGENT_ALLOWED_COMMANDS.has(command)),
 )
