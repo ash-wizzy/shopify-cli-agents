@@ -165,6 +165,90 @@
       "strict": false,
       "usage": "help [command] [flags]"
     },
+    "store:list": {
+      "aliases": [],
+      "args": {},
+      "customPluginName": "@shopify/store",
+      "description": "Lists stores in a Shopify organization available to the current CLI account.\n\nWhen more than one organization is available, the command prompts you to pick one unless you provide `--organization-id`. In that case, `--organization-id` is required in non-interactive environments.\n\nRun `<%= config.bin %> organization list` to find organization IDs.\n\nUse `--json-schema` to print the result, error, and event schemas.\n\nOutput from `--json` conforms to the `StoreListResult` schema.\n\n```json\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"stores\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"$ref\": \"#/definitions/StoreListEntry\"\n      }\n    },\n    \"organization\": {\n      \"$ref\": \"#/definitions/StoreListOrganization\"\n    },\n    \"storeType\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"dev\",\n        \"production\",\n        \"client-transfer\",\n        \"collaborator\"\n      ]\n    },\n    \"notice\": {\n      \"type\": \"string\"\n    },\n    \"truncated\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"required\": [\n    \"stores\"\n  ],\n  \"additionalProperties\": false,\n  \"title\": \"StoreListResult\",\n  \"definitions\": {\n    \"StoreListEntry\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"id\": {\n          \"type\": \"string\"\n        },\n        \"store\": {\n          \"type\": \"string\"\n        },\n        \"primaryDomain\": {\n          \"type\": \"string\",\n          \"description\": \"The primary storefront hostname, which may be a custom domain.\"\n        },\n        \"createdAt\": {\n          \"type\": \"string\"\n        },\n        \"organizationId\": {\n          \"type\": \"string\"\n        },\n        \"organizationName\": {\n          \"type\": \"string\"\n        },\n        \"name\": {\n          \"type\": \"string\"\n        },\n        \"type\": {\n          \"type\": \"string\"\n        },\n        \"plan\": {\n          \"type\": \"string\"\n        }\n      },\n      \"required\": [\n        \"store\",\n        \"createdAt\",\n        \"organizationId\",\n        \"organizationName\"\n      ],\n      \"additionalProperties\": false\n    },\n    \"StoreListOrganization\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"id\": {\n          \"type\": \"string\"\n        },\n        \"name\": {\n          \"type\": \"string\"\n        }\n      },\n      \"required\": [\n        \"id\",\n        \"name\"\n      ],\n      \"additionalProperties\": false\n    }\n  },\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n```",
+      "descriptionWithMarkdown": "Lists stores in a Shopify organization available to the current CLI account.\n\nWhen more than one organization is available, the command prompts you to pick one unless you provide `--organization-id`. In that case, `--organization-id` is required in non-interactive environments.\n\nRun `<%= config.bin %> organization list` to find organization IDs.",
+      "examples": [
+        "<%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --organization-id 1234567",
+        "<%= config.bin %> <%= command.id %> --type dev",
+        "<%= config.bin %> <%= command.id %> --json"
+      ],
+      "flags": {
+        "json": {
+          "allowNo": false,
+          "char": "j",
+          "description": "Output the result as JSON. Automatically disables color output.",
+          "env": "SHOPIFY_FLAG_JSON",
+          "hidden": false,
+          "name": "json",
+          "type": "boolean"
+        },
+        "json-schema": {
+          "allowNo": false,
+          "description": "Print the command's JSON schemas.",
+          "env": "SHOPIFY_FLAG_JSON_SCHEMA",
+          "name": "json-schema",
+          "type": "boolean"
+        },
+        "no-color": {
+          "allowNo": false,
+          "description": "Disable color output.",
+          "env": "SHOPIFY_FLAG_NO_COLOR",
+          "hidden": false,
+          "name": "no-color",
+          "type": "boolean"
+        },
+        "no-input": {
+          "allowNo": false,
+          "description": "Disable interactive prompts and browser authentication.",
+          "env": "SHOPIFY_FLAG_NO_INPUT",
+          "name": "no-input",
+          "type": "boolean"
+        },
+        "organization-id": {
+          "description": "The numeric organization ID. Auto-selects if you belong to a single organization. Required if non interactive when more than one organization is available.",
+          "env": "SHOPIFY_FLAG_ORGANIZATION_ID",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "organization-id",
+          "type": "option"
+        },
+        "type": {
+          "description": "List only stores of this type.",
+          "env": "SHOPIFY_FLAG_STORE_TYPE",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "type",
+          "options": [
+            "dev",
+            "production",
+            "client-transfer",
+            "collaborator"
+          ],
+          "type": "option"
+        },
+        "verbose": {
+          "allowNo": false,
+          "description": "Increase the verbosity of the output. May include sensitive data.",
+          "env": "SHOPIFY_FLAG_VERBOSE",
+          "hidden": false,
+          "name": "verbose",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "store:list",
+      "pluginAlias": "@shopify/cli",
+      "pluginName": "@shopify/cli",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "List stores in a Shopify organization."
+    },
     "theme:check": {
       "aliases": [],
       "args": {},

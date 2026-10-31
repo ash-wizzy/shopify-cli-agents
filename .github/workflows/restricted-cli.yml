@@ -62,6 +62,7 @@ jobs:
           node packages/cli/bin/run.js theme push --help >/dev/null
           node packages/cli/bin/run.js auth login --help >/dev/null
           node packages/cli/bin/run.js auth logout --help >/dev/null
+          node packages/cli/bin/run.js store list --help >/dev/null
 
           while IFS='|' read -r group command; do
             if node packages/cli/bin/run.js "$group" "$command" --help > /tmp/denied-command.log 2>&1; then
@@ -78,6 +79,9 @@ jobs:
           theme|rename
           theme|preview
           app|deploy
+          store|delete
+          store|execute
+          store|auth
           DENIED
 
       - name: Verify published-target switches are refused without store credentials

@@ -186,6 +186,7 @@ const AGENT_ALLOWED_COMMANDS = new Set([
   'theme:info',
   'theme:pull',
   'theme:push',
+  'store:list',
 ])
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
