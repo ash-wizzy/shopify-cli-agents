@@ -16,7 +16,6 @@ const development = buildTheme({id: 44, name: 'Dev', role: 'development'})!
 
 describe('agent draft-only push policy', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
     vi.mocked(fetchTheme).mockResolvedValue(draft)
   })
 
