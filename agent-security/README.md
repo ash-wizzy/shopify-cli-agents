@@ -4,8 +4,8 @@ This repository is **public**. All push changes require regression tests and an 
 
 ## V0: safe theme operations
 
-- **Allowed:** `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, `theme push` to Shopify-confirmed **unpublished** themes, `help` and `version`.
-- **Disabled:** `theme publish`, `theme dev`, `theme share`, `theme delete`, `theme rename`, `theme duplicate`, `theme preview`, all app/store commands, plugin commands, upgrade/login/logout shortcuts, and push options selecting a live/development theme or publishing.
+- **Allowed:** `auth login`, `auth logout`, `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, `theme push` to Shopify-confirmed **unpublished** themes, `help` and `version`.
+- **Disabled:** `theme publish`, `theme dev`, `theme share`, `theme delete`, `theme rename`, `theme duplicate`, `theme preview`, all app/store commands, plugin commands, upgrade shortcuts, and push options selecting a live/development theme or publishing.
 - The theme push service validates unsafe flags before authentication; its interactive picker shows only unpublished themes; it fetches a fresh role before sync and before every file mutation batch (including retries).
 - The static policy checker fails if command registration, the generated manifest or push guards are altered. Unit tests exercise draft selection and flag/role denials.
 
@@ -24,9 +24,12 @@ python3 agent-security/verify-policy.py .
 corepack pnpm install --frozen-lockfile
 corepack pnpm nx build cli
 node packages/cli/bin/run.js theme publish --help # should be unavailable
-node packages/cli/bin/run.js theme push --help    # should be available\ncorepack pnpm exec vitest run packages/theme/src/cli/services/agent-push-policy.test.ts
+node packages/cli/bin/run.js theme push --help    # should be available
+node packages/cli/bin/run.js auth login --help     # should be available
+node packages/cli/bin/run.js auth logout --help    # should be available
+corepack pnpm exec vitest run packages/theme/src/cli/services/agent-push-policy.test.ts
 ```
 
-The first import is pinned to Shopify's `d92c0a0d62f149c2d458a98dbaf89f7cc2e7669d` commit (2026-10-28). Subsequent updates must be audited, patched, tested, and merged through PRs. We deliberately do not inherit upstream GitHub Actions workflows.
+This repository is a native GitHub fork of Shopify CLI. Rebase or sync upstream changes only after reviewing their command definitions, generated Oclif manifest, and authentication behavior; rerun security verification, lint, build and regression tests. Some upstream GitHub Actions workflows are inherited and may need to be disabled independently.
 
 Do not run agents with write-capable Shopify credentials even after CI passes. Add CODEOWNERS and protect main before deploying this binary.

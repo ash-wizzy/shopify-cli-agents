@@ -60,6 +60,8 @@ jobs:
           node packages/cli/bin/run.js theme check --help >/dev/null
           node packages/cli/bin/run.js theme package --help >/dev/null
           node packages/cli/bin/run.js theme push --help >/dev/null
+          node packages/cli/bin/run.js auth login --help >/dev/null
+          node packages/cli/bin/run.js auth logout --help >/dev/null
 
           while IFS='|' read -r group command; do
             if node packages/cli/bin/run.js "$group" "$command" --help > /tmp/denied-command.log 2>&1; then
