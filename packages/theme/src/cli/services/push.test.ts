@@ -65,25 +65,25 @@ describe('agent-only theme push service', () => {
     expect(themePublish).not.toHaveBeenCalled()
   })
 
-  test.each([
-    {publish: true},
-    {live: true},
-    {allowLive: true},
-    {development: true},
-    {developmentContext: 'foo'},
-  ])('blocks forbidden flags before authentication or writes: %j', async (flags) => {
-    await expect(push({...defaultFlags, ...flags}, adminSession)).rejects.toThrow(/unpublished/)
-    expect(uploadTheme).not.toHaveBeenCalled()
-    expect(findOrSelectTheme).not.toHaveBeenCalled()
-  })
+  test.each([{publish: true}, {live: true}, {allowLive: true}, {development: true}, {developmentContext: 'foo'}])(
+    'blocks forbidden flags before authentication or writes: %j',
+    async (flags) => {
+      await expect(push({...defaultFlags, ...flags}, adminSession)).rejects.toThrow(/unpublished/)
+      expect(uploadTheme).not.toHaveBeenCalled()
+      expect(findOrSelectTheme).not.toHaveBeenCalled()
+    },
+  )
 
   test('uses a strict draft-only picker for interactive push', async () => {
     await createOrSelectTheme(adminSession, {})
-    expect(findOrSelectTheme).toHaveBeenCalledWith(adminSession, expect.objectContaining({
-      create: true,
-      filter: {theme: undefined},
-      allowedRoles: ['unpublished'],
-    }))
+    expect(findOrSelectTheme).toHaveBeenCalledWith(
+      adminSession,
+      expect.objectContaining({
+        create: true,
+        filter: {theme: undefined},
+        allowedRoles: ['unpublished'],
+      }),
+    )
   })
 
   test('creates an unpublished theme with the proper role', async () => {
@@ -95,15 +95,17 @@ describe('agent-only theme push service', () => {
 
   test('rejects strict theme-check errors before uploading', async () => {
     vi.mocked(runThemeCheck).mockResolvedValue({
-      offenses: [{
-        severity: Severity.ERROR,
-        message: 'Broken Liquid',
-        check: 'SyntaxError',
-        uri: 'file:///my-theme/layout/theme.liquid',
-        type: SourceCodeType.LiquidHtml,
-        start: {index: 0, line: 1, character: 1},
-        end: {index: 1, line: 1, character: 2},
-      }],
+      offenses: [
+        {
+          severity: Severity.ERROR,
+          message: 'Broken Liquid',
+          check: 'SyntaxError',
+          uri: 'file:///my-theme/layout/theme.liquid',
+          type: SourceCodeType.LiquidHtml,
+          start: {index: 0, line: 1, character: 1},
+          end: {index: 1, line: 1, character: 2},
+        },
+      ],
       theme: [],
     })
     await expect(push({...defaultFlags, strict: true}, adminSession)).rejects.toThrow(AbortError)

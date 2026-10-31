@@ -57,9 +57,11 @@ export function uploadTheme(
   const getProgress = (params: {current: number; total: number}) =>
     params.total === 0 ? `[100%]` : `[${Math.round((params.current / params.total) * 100)}%]`
 
-  const themeCreationPromise = ensureThemeCreation(theme, session, remoteChecksums, options.assertCanWrite).then((results) => {
-    results.forEach(recordResult)
-  })
+  const themeCreationPromise = ensureThemeCreation(theme, session, remoteChecksums, options.assertCanWrite).then(
+    (results) => {
+      results.forEach(recordResult)
+    },
+  )
 
   const uploadJobPromise = Promise.all([themeFileSystem.ready(), themeCreationPromise]).then(() =>
     buildUploadJob(remoteChecksums, themeFileSystem, theme, session, recordResult, options.assertCanWrite),
@@ -186,7 +188,11 @@ function buildDeleteJob(
     const batch = orderedFiles.slice(i, i + MAX_BATCH_FILE_COUNT)
     const promise = (async () => {
       await options.assertCanWrite?.()
-      return deleteThemeAssets(theme.id, batch.map((file) => file.key), session)
+      return deleteThemeAssets(
+        theme.id,
+        batch.map((file) => file.key),
+        session,
+      )
     })().then((results) => {
       results.forEach((result) => {
         recordResult(result)
@@ -499,7 +505,14 @@ async function handleBulkUpload(
     outputDebug(
       `The following files failed to upload:\n${failedUploadResults.map((param) => `-${param.key}`).join('\n')}`,
     )
-    const failedResults = await handleFailedUploads(failedUploadResults, uploadParams, themeId, session, count, assertCanWrite)
+    const failedResults = await handleFailedUploads(
+      failedUploadResults,
+      uploadParams,
+      themeId,
+      session,
+      count,
+      assertCanWrite,
+    )
     return results.concat(failedResults)
   }
   return results

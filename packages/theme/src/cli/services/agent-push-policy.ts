@@ -24,9 +24,7 @@ export function assertAgentSafePushFlags(flags: AgentPushFlags): void {
 /** Even if a theme selector returns a stale entry, deny any non-draft role. */
 export function assertUnpublishedSelectedTheme(theme: Theme): void {
   if (theme.role !== UNPUBLISHED_THEME_ROLE) {
-    throw new AbortError(
-      `Refusing to modify theme ${theme.id}: role is "${theme.role}", not "unpublished".`,
-    )
+    throw new AbortError(`Refusing to modify theme ${theme.id}: role is "${theme.role}", not "unpublished".`)
   }
 }
 
@@ -34,8 +32,6 @@ export function assertUnpublishedSelectedTheme(theme: Theme): void {
 export async function assertUnpublishedTheme(themeId: number, session: AdminSession): Promise<void> {
   const current = await fetchTheme(themeId, session)
   if (!current || String(current.id) !== String(themeId) || current.role !== UNPUBLISHED_THEME_ROLE) {
-    throw new AbortError(
-      `Refusing to modify theme ${themeId}: Shopify did not confirm it is currently unpublished.`,
-    )
+    throw new AbortError(`Refusing to modify theme ${themeId}: Shopify did not confirm it is currently unpublished.`)
   }
 }

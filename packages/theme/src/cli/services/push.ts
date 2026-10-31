@@ -1,10 +1,10 @@
 import {themePushResultSchema, themePushJsonResult} from './push/types.js'
 import {checkThemeBeforePush, renderThemePushResult} from './push/result.js'
+import {assertAgentSafePushFlags, assertUnpublishedTheme, assertUnpublishedSelectedTheme} from './agent-push-policy.js'
 import {hasRequiredThemeDirectories, mountThemeFileSystem} from '../utilities/theme-fs.js'
 import {uploadTheme} from '../utilities/theme-uploader.js'
 import {ensureDirectoryConfirmed} from '../utilities/theme-ui.js'
 import {findOrSelectTheme} from '../utilities/theme-selector.js'
-import {assertAgentSafePushFlags, assertUnpublishedTheme, assertUnpublishedSelectedTheme} from './agent-push-policy.js'
 import {configureCLIEnvironment} from '../utilities/cli-config.js'
 import {ensureThemeStore} from '../utilities/theme-store.js'
 import {ensureListingExists, getListingFilePath} from '../utilities/theme-listing.js'
@@ -13,10 +13,7 @@ import {themeCreate, fetchChecksums} from '@shopify/cli-kit/node/themes/api'
 import {Theme} from '@shopify/cli-kit/node/themes/types'
 import {themeEditorUrl, themePreviewUrl} from '@shopify/cli-kit/node/themes/urls'
 import {cwd, resolvePath} from '@shopify/cli-kit/node/path'
-import {
-  promptThemeName,
-  UNPUBLISHED_THEME_ROLE,
-} from '@shopify/cli-kit/node/themes/utils'
+import {promptThemeName, UNPUBLISHED_THEME_ROLE} from '@shopify/cli-kit/node/themes/utils'
 import {AbortError} from '@shopify/cli-kit/node/error'
 import {recordTiming} from '@shopify/cli-kit/node/analytics'
 

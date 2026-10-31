@@ -103,10 +103,12 @@ describe('findOrSelectTheme', () => {
 
   test('rejects direct selection of a live theme when unpublished-only is required', async () => {
     vi.mocked(fetchStoreThemes).mockResolvedValue(storeThemes)
-    await expect(findOrSelectTheme(session, {
-      filter: {theme: '3'},
-      allowedRoles: ['unpublished'],
-    })).rejects.toThrow(/No themes/)
+    await expect(
+      findOrSelectTheme(session, {
+        filter: {theme: '3'},
+        allowedRoles: ['unpublished'],
+      }),
+    ).rejects.toThrow(/No themes/)
   })
 
   test('returns a new theme when users select that option', async () => {

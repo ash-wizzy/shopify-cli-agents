@@ -24,15 +24,12 @@ describe('agent draft-only push policy', () => {
     expect(() => assertAgentSafePushFlags({})).not.toThrow()
   })
 
-  test.each([
-    {live: true},
-    {allowLive: true},
-    {publish: true},
-    {development: true},
-    {developmentContext: 'agent'},
-  ])('rejects unsafe flags before remote calls: %j', (flags) => {
-    expect(() => assertAgentSafePushFlags(flags)).toThrow(/unpublished/)
-  })
+  test.each([{live: true}, {allowLive: true}, {publish: true}, {development: true}, {developmentContext: 'agent'}])(
+    'rejects unsafe flags before remote calls: %j',
+    (flags) => {
+      expect(() => assertAgentSafePushFlags(flags)).toThrow(/unpublished/)
+    },
+  )
 
   test('allows verified unpublished targets and rejects live/development roles', () => {
     expect(() => assertUnpublishedSelectedTheme(draft)).not.toThrow()
@@ -58,10 +55,13 @@ describe('agent draft-only push policy', () => {
   test('interactive selection asks for unpublished themes only', async () => {
     vi.mocked(findOrSelectTheme).mockResolvedValue(draft)
     await expect(createOrSelectTheme(session, {})).resolves.toEqual(draft)
-    expect(findOrSelectTheme).toHaveBeenCalledWith(session, expect.objectContaining({
-      allowedRoles: ['unpublished'],
-      filter: {theme: undefined},
-    }))
+    expect(findOrSelectTheme).toHaveBeenCalledWith(
+      session,
+      expect.objectContaining({
+        allowedRoles: ['unpublished'],
+        filter: {theme: undefined},
+      }),
+    )
   })
 
   test('rejects a live theme even if a selector incorrectly returns one', async () => {
