@@ -4,13 +4,21 @@
 
 This repository is a public native fork of [Shopify/cli](https://github.com/Shopify/cli) with agent-specific command restrictions.
 
-**Allowed:** `auth login`, `auth logout`, **`store list` (read-only)**, `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, **`theme push` (unpublished themes only)**, `version`, `help`.
+**Allowed:** `auth login`, `auth logout`, **`store list` (read-only)**, **`organization list` (read-only)**, `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, **`theme push` (unpublished themes only)**, `version`, `help`.
 
 **Disabled:** theme publishing, live-theme writes, development-theme uploads, theme deletion/rename, preview/share, app mutations, store-management mutations and plugin commands. Push checks Shopify's current unpublished role before each write batch. For a security rationale and deployment roadmap, see [agent-security/README.md](agent-security/README.md).
 
 ## Authentication
 
 Run `node packages/cli/bin/run.js auth login` to select or authenticate a Shopify account, and `node packages/cli/bin/run.js auth logout` to sign out. These are official Shopify CLI authentication operations; signing in does **not** reduce the Shopify permissions attached to that account. Never give unattended agents owner credentials or production-write tokens.
+
+## Discover organizations
+
+Use `node packages/cli/bin/run.js organization list` to list the organizations visible to the authenticated account and find their organization IDs. This is a read-only command. For automation:
+
+```bash
+node packages/cli/bin/run.js organization list --json
+```
 
 ## Discover accessible stores
 
