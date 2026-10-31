@@ -4,13 +4,24 @@
 
 This repository is a public native fork of [Shopify/cli](https://github.com/Shopify/cli) with agent-specific command restrictions.
 
-**Allowed:** `auth login`, `auth logout`, `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, **`theme push` (unpublished themes only)**, `version`, `help`.
+**Allowed:** `auth login`, `auth logout`, **`store list` (read-only)**, `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, **`theme push` (unpublished themes only)**, `version`, `help`.
 
-**Disabled:** theme publishing, live-theme writes, development-theme uploads, theme deletion/rename, preview/share, app/store mutations and plugin commands. Push checks Shopify's current unpublished role before each write batch. For a security rationale and deployment roadmap, see [agent-security/README.md](agent-security/README.md).
+**Disabled:** theme publishing, live-theme writes, development-theme uploads, theme deletion/rename, preview/share, app mutations, store-management mutations and plugin commands. Push checks Shopify's current unpublished role before each write batch. For a security rationale and deployment roadmap, see [agent-security/README.md](agent-security/README.md).
 
 ## Authentication
 
 Run `node packages/cli/bin/run.js auth login` to select or authenticate a Shopify account, and `node packages/cli/bin/run.js auth logout` to sign out. These are official Shopify CLI authentication operations; signing in does **not** reduce the Shopify permissions attached to that account. Never give unattended agents owner credentials or production-write tokens.
+
+## Discover accessible stores
+
+Use `node packages/cli/bin/run.js store list` to list stores visible to the authenticated Shopify organization account. This command queries store information only; it cannot create, modify or delete stores. Use `--json` for structured output and `--organization-id 1234567` when multiple organizations are available (required in non-interactive sessions).
+
+```bash
+node packages/cli/bin/run.js store list
+node packages/cli/bin/run.js store list --json --organization-id 1234567
+```
+
+This shows organizational access, not necessarily a complete list of local store-auth sessions or permission details for individual themes.
 
 ## Build the restricted CLI
 
