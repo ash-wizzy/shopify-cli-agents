@@ -13,7 +13,7 @@ push = (r / 'packages/theme/src/cli/services/push.ts').read_text()
 root_commands = re.search(r'const AGENT_ALLOWED_COMMANDS = new Set\(\[([\s\S]*?)\]\)', root)
 assert root_commands, 'Missing root command allowlist'
 allowed = set(re.findall(r"'([^']+)'", root_commands.group(1)))
-expected = {'help','version','theme:init','theme:check','theme:language-server',
+expected = {'help','version','auth:login','auth:logout','theme:init','theme:check','theme:language-server',
             'theme:package','theme:list','theme:info','theme:pull','theme:push'}
 assert allowed == expected, f'Unexpected root commands: {allowed ^ expected}'
 assert 'Object.entries(ALL_COMMANDS).filter(([command]) => AGENT_ALLOWED_COMMANDS.has(command))' in root
@@ -21,7 +21,7 @@ assert 'Object.entries(ALL_COMMANDS).filter(([command]) => AGENT_ALLOWED_COMMAND
 block = re.search(r'// AGENT THEME COMMANDS[\s\S]*?const COMMANDS = \{([\s\S]*?)\n\}', theme)
 assert block, 'Missing theme command registration boundary'
 registered = set(re.findall(r"'([^']+)':", block.group(1)))
-assert registered == expected - {'help','version'}, f'Unexpected theme commands: {registered}'
+assert registered == expected - {'help','version','auth:login','auth:logout'}, f'Unexpected theme commands: {registered}'
 
 assert push.count('assertAgentSafePushFlags(flags)') >= 2, 'CLI and exported push flag guards missing'
 assert 'await assertUnpublishedTheme(theme.id, session)' in push, 'Fresh pre-upload role verification missing'
@@ -40,5 +40,7 @@ manifest_commands = set(manifest['commands'])
 assert manifest_commands == expected, f'Unsafe Oclif command manifest entries: {manifest_commands ^ expected}'
 assert 'theme:publish' not in manifest['commands']
 assert 'theme:push' in manifest['commands']
+for auth_command in ('auth:login', 'auth:logout'):
+    assert auth_command in allowed and auth_command in manifest_commands, f'Auth command missing: {auth_command}'
 
 print('PASS: root/theme/manifest allowlist with unpublished-only push guards (static only).')

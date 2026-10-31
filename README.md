@@ -2,11 +2,15 @@
 
 > **Experimental fork, not official Shopify CLI.** This build restricts theme pushes to unpublished themes, and removes publishing and other unsafe operations from the CLI and its generated Oclif manifest. **Do not give AI agents production-write Shopify credentials.** Command restrictions alone are not an authorization boundary.
 
-This repository maintains a public, independent source copy of [Shopify/cli](https://github.com/Shopify/cli), pinned at `d92c0a0d62f149c2d458a98dbaf89f7cc2e7669d`, with agent-specific restrictions.
+This repository is a public native fork of [Shopify/cli](https://github.com/Shopify/cli) with agent-specific command restrictions.
 
-**Allowed:** `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, **`theme push` (unpublished themes only)**, `version`, `help`.
+**Allowed:** `auth login`, `auth logout`, `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, **`theme push` (unpublished themes only)**, `version`, `help`.
 
 **Disabled:** theme publishing, live-theme writes, development-theme uploads, theme deletion/rename, preview/share, app/store mutations and plugin commands. Push checks Shopify's current unpublished role before each write batch. For a security rationale and deployment roadmap, see [agent-security/README.md](agent-security/README.md).
+
+## Authentication
+
+Run `node packages/cli/bin/run.js auth login` to select or authenticate a Shopify account, and `node packages/cli/bin/run.js auth logout` to sign out. These are official Shopify CLI authentication operations; signing in does **not** reduce the Shopify permissions attached to that account. Never give unattended agents owner credentials or production-write tokens.
 
 ## Build the restricted CLI
 

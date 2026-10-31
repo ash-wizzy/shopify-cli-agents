@@ -171,10 +171,12 @@ const ALL_COMMANDS: any = {
   'config:autoupgrade:status': AutoupgradeStatus,
 }
 
-// AGENT POLICY: explicit read/local command allowlist.
-// Never add remote write commands here.
+// AGENT POLICY: allow authentication and narrowly scoped theme operations.
+// Never register publishing or unrestricted remote mutation commands here.
 const AGENT_ALLOWED_COMMANDS = new Set([
   'help',
+  'auth:login',
+  'auth:logout',
   'version',
   'theme:init',
   'theme:check',
