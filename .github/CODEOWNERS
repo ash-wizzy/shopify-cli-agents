@@ -1,14 +1,8 @@
-# By default, review should come from the dev_experience team
-* @shopify/dev_experience
-
-# Theme team and CLI owners should review theme changes
-packages/cli-kit/src/private/themes/* @shopify/developer-platforms
-packages/cli-kit/src/public/**/themes/* @shopify/developer-platforms
-packages/theme/** @shopify/developer-platforms
-
-# These are metafiles that can be reviewed by anyone
-.changeset/*
-.github/CODEOWNERS @shopify/developer-platforms @shopify/dev_experience
-docs-shopify.dev/**  @shopify/developer-platforms @shopify/dev_experience
-packages/cli/oclif.manifest.json @shopify/developer-platforms @shopify/dev_experience
-packages/cli/README.md @shopify/developer-platforms @shopify/dev_experience
+# Code review ownership for security-critical CLI policy.
+* @ash-wizzy
+/agent-security/ @ash-wizzy
+/packages/cli/src/index.ts @ash-wizzy
+/packages/cli/oclif.manifest.json @ash-wizzy
+/packages/theme/src/index.ts @ash-wizzy
+/packages/theme/src/cli/services/push.ts @ash-wizzy
+/.github/workflows/ @ash-wizzy

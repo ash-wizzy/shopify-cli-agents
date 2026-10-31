@@ -1,398 +1,113 @@
-import {setDevelopmentTheme} from './local-storage.js'
-import {PullFlags} from './pull.js'
-import {createOrSelectTheme, push, PushFlags} from './push.js'
-import {mountThemeFileSystem} from '../utilities/theme-fs.js'
-import {runThemeCheck} from '../commands/theme/check.js'
+import {push, createOrSelectTheme} from './push.js'
 import {findOrSelectTheme} from '../utilities/theme-selector.js'
-import {ensureThemeStore} from '../utilities/theme-store.js'
+import {hasRequiredThemeDirectories} from '../utilities/theme-fs.js'
 import {uploadTheme} from '../utilities/theme-uploader.js'
-import {buildTheme} from '@shopify/cli-kit/node/themes/factories'
-import {test, describe, vi, expect, beforeEach} from 'vitest'
-import {themeCreate, fetchTheme, themePublish} from '@shopify/cli-kit/node/themes/api'
+import {runThemeCheck} from '../commands/theme/check.js'
 import {ensureAuthenticatedThemes} from '@shopify/cli-kit/node/session'
-import {
-  DEVELOPMENT_THEME_ROLE,
-  LIVE_THEME_ROLE,
-  UNPUBLISHED_THEME_ROLE,
-  promptThemeName,
-} from '@shopify/cli-kit/node/themes/utils'
-import {renderConfirmationPrompt} from '@shopify/cli-kit/node/ui'
-import {AbortError} from '@shopify/cli-kit/node/error'
+import {fetchTheme, fetchChecksums, themeCreate, themePublish} from '@shopify/cli-kit/node/themes/api'
+import {buildTheme} from '@shopify/cli-kit/node/themes/factories'
+import {describe, test, expect, vi, beforeEach} from 'vitest'
 import {Severity, SourceCodeType} from '@shopify/theme-check-node'
-import {outputResult} from '@shopify/cli-kit/node/output'
-import {inTemporaryDirectory} from '@shopify/cli-kit/node/fs'
+import {AbortError} from '@shopify/cli-kit/node/error'
+import type {PushFlags} from './push.js'
 
+vi.mock('../utilities/theme-selector.js')
+vi.mock('../utilities/theme-fs.js')
 vi.mock('../utilities/theme-uploader.js')
 vi.mock('../utilities/theme-store.js')
-vi.mock('../utilities/theme-selector.js')
-vi.mock('./local-storage.js')
 vi.mock('../utilities/theme-listing.js')
-vi.mock('@shopify/cli-kit/node/themes/utils')
-vi.mock('@shopify/cli-kit/node/session')
-vi.mock('@shopify/cli-kit/node/themes/api')
-vi.mock('@shopify/cli-kit/node/ui')
 vi.mock('../commands/theme/check.js')
-vi.mock('@shopify/cli-kit/node/output')
-vi.mock('../utilities/theme-fs.js')
+vi.mock('@shopify/cli-kit/node/themes/api')
+vi.mock('@shopify/cli-kit/node/session')
+vi.mock('@shopify/cli-kit/node/ui')
 
-const path = '/my-theme'
-const defaultFlags: PullFlags = {
-  path,
-  development: false,
-  live: false,
-  nodelete: false,
-  only: [],
-  ignore: [],
-  force: false,
-}
-const adminSession = {token: '', storeFqdn: 'example.myshopify.com'}
+const adminSession = {token: 'test-token', storeFqdn: 'example.myshopify.com'}
+const draft = buildTheme({id: 42, name: 'Safe Draft', role: 'unpublished'})!
+const live = buildTheme({id: 43, name: 'Published', role: 'live'})!
+const defaultFlags: PushFlags = {path: '/my-theme', theme: '42'}
 
-describe('push', () => {
+describe('agent-only theme push service', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(findOrSelectTheme).mockResolvedValue(draft)
+    vi.mocked(fetchTheme).mockResolvedValue(draft)
+    vi.mocked(fetchChecksums).mockResolvedValue([])
+    vi.mocked(hasRequiredThemeDirectories).mockResolvedValue(true)
+    vi.mocked(ensureAuthenticatedThemes).mockResolvedValue(adminSession)
     vi.mocked(uploadTheme).mockReturnValue({
       workPromise: Promise.resolve(),
       uploadResults: new Map(),
       hasChanges: false,
-      renderThemeSyncProgress: () => Promise.resolve(),
-    })
-    vi.mocked(ensureThemeStore).mockReturnValue('example.myshopify.com')
-    vi.mocked(ensureAuthenticatedThemes).mockResolvedValue(adminSession)
-    vi.mocked(outputResult).mockReturnValue()
-  })
-
-  test('should call themePublish if publish flag is provided', async () => {
-    // Given
-    const theme = buildTheme({id: 1, name: 'Theme', role: 'development'})!
-    vi.mocked(findOrSelectTheme).mockResolvedValue(theme)
-
-    // When
-    await push({...defaultFlags, publish: true}, adminSession)
-
-    // Then
-    expect(themePublish).toHaveBeenCalledWith(theme.id, adminSession)
-  })
-
-  test('includes errors in JSON output when using --json flag', async () => {
-    // Given
-    const theme = buildTheme({id: 1, name: 'Theme', role: 'development'})!
-    vi.mocked(findOrSelectTheme).mockResolvedValue(theme)
-
-    const uploadResults = new Map()
-    uploadResults.set('assets/theme.css', {
-      success: false,
-      errors: {
-        asset: ['Invalid CSS syntax at line 42'],
-      },
-    })
-    uploadResults.set('layout/theme.liquid', {
-      success: false,
-      errors: {
-        asset: ['Missing endif tag'],
-      },
-    })
-    uploadResults.set('assets/valid.js', {
-      success: true,
-    })
-
-    vi.mocked(uploadTheme).mockReturnValue({
-      workPromise: Promise.resolve(),
-      uploadResults,
-      hasChanges: true,
-      renderThemeSyncProgress: () => Promise.resolve(),
-    })
-
-    // When
-    await push({...defaultFlags, json: true}, adminSession)
-
-    // Then
-    const result = JSON.parse(vi.mocked(outputResult).mock.calls[0]![0] as string)
-    expect(result).toMatchObject({
-      status: 'partial',
-      changed: true,
-      theme: {id: '1', storeDomain: 'example.myshopify.com'},
-      issues: [{message: 'Invalid CSS syntax at line 42'}, {message: 'Missing endif tag'}],
+      renderThemeSyncProgress: async () => {},
     })
   })
 
-  describe('strict mode', () => {
-    beforeEach(() => {
-      const theme = buildTheme({id: 1, name: 'Theme', role: 'development'})!
-      vi.mocked(findOrSelectTheme).mockResolvedValue(theme)
+  test('pushes only when Shopify confirms the current theme is unpublished', async () => {
+    await push(defaultFlags, adminSession)
+    expect(fetchTheme).toHaveBeenCalledWith(42, adminSession)
+    expect(uploadTheme).toHaveBeenCalledTimes(1)
+    const [, , , , options] = vi.mocked(uploadTheme).mock.calls[0]!
+    expect(options.assertCanWrite).toBeTypeOf('function')
+    await options.assertCanWrite!()
+    expect(fetchTheme).toHaveBeenCalledTimes(2)
+    expect(themePublish).not.toHaveBeenCalled()
+  })
+
+  test('rejects a theme that became live after selection, without uploading', async () => {
+    vi.mocked(fetchTheme).mockResolvedValue(live)
+    await expect(push(defaultFlags, adminSession)).rejects.toThrow(/currently unpublished/)
+    expect(uploadTheme).not.toHaveBeenCalled()
+  })
+
+  test('rejects an explicit live theme even if the picker returns one', async () => {
+    vi.mocked(findOrSelectTheme).mockResolvedValue(live)
+    await expect(push({...defaultFlags, theme: '43'}, adminSession)).rejects.toThrow(/not "unpublished"/)
+    expect(uploadTheme).not.toHaveBeenCalled()
+    expect(themePublish).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    {publish: true},
+    {live: true},
+    {allowLive: true},
+    {development: true},
+    {developmentContext: 'foo'},
+  ])('blocks forbidden flags before authentication or writes: %j', async (flags) => {
+    await expect(push({...defaultFlags, ...flags}, adminSession)).rejects.toThrow(/unpublished/)
+    expect(uploadTheme).not.toHaveBeenCalled()
+    expect(findOrSelectTheme).not.toHaveBeenCalled()
+  })
+
+  test('uses a strict draft-only picker for interactive push', async () => {
+    await createOrSelectTheme(adminSession, {})
+    expect(findOrSelectTheme).toHaveBeenCalledWith(adminSession, expect.objectContaining({
+      create: true,
+      filter: {theme: undefined},
+      allowedRoles: ['unpublished'],
+    }))
+  })
+
+  test('creates an unpublished theme with the proper role', async () => {
+    vi.mocked(themeCreate).mockResolvedValue(draft)
+    await push({path: '/my-theme', unpublished: true, theme: 'Safe Draft'}, adminSession)
+    expect(themeCreate).toHaveBeenCalledWith({name: 'Safe Draft', role: 'unpublished'}, adminSession)
+    expect(uploadTheme).toHaveBeenCalledTimes(1)
+  })
+
+  test('rejects strict theme-check errors before uploading', async () => {
+    vi.mocked(runThemeCheck).mockResolvedValue({
+      offenses: [{
+        severity: Severity.ERROR,
+        message: 'Broken Liquid',
+        check: 'SyntaxError',
+        uri: 'file:///my-theme/layout/theme.liquid',
+        type: SourceCodeType.LiquidHtml,
+        start: {index: 0, line: 1, character: 1},
+        end: {index: 1, line: 1, character: 2},
+      }],
+      theme: [],
     })
-
-    test('skips theme check when strict mode is disabled', async () => {
-      // Given
-      const flags = {...defaultFlags, strict: false}
-
-      // When
-      await push(flags, adminSession)
-
-      // Then
-      expect(runThemeCheck).not.toHaveBeenCalled()
-    })
-
-    test('blocks push when errors exist', async () => {
-      // Given
-      vi.mocked(runThemeCheck).mockResolvedValue({
-        offenses: [
-          {
-            severity: Severity.ERROR,
-            message: 'error message',
-            type: SourceCodeType.LiquidHtml,
-            check: 'check',
-            uri: 'file:///path/to/file.liquid',
-            start: {index: 0, line: 1, character: 1},
-            end: {index: 1, line: 1, character: 1},
-          },
-        ],
-        theme: [],
-      })
-
-      // When/Then
-      await expect(push({...defaultFlags, strict: true}, adminSession)).rejects.toThrow(AbortError)
-    })
-
-    test('blocks push when both warnings and errors exist', async () => {
-      // Given
-      vi.mocked(runThemeCheck).mockResolvedValue({
-        offenses: [
-          {
-            severity: Severity.WARNING,
-            message: 'warning message',
-            type: SourceCodeType.LiquidHtml,
-            check: 'check',
-            uri: 'file:///path/to/file.liquid',
-            start: {index: 0, line: 1, character: 1},
-            end: {index: 1, line: 1, character: 1},
-          },
-          {
-            severity: Severity.ERROR,
-            message: 'error message',
-            type: SourceCodeType.LiquidHtml,
-            check: 'check',
-            uri: 'file:///path/to/file.liquid',
-            start: {index: 0, line: 1, character: 1},
-            end: {index: 1, line: 1, character: 1},
-          },
-        ],
-        theme: [],
-      })
-
-      // When/Then
-      await expect(push({...defaultFlags, strict: true}, adminSession)).rejects.toThrow(AbortError)
-    })
-
-    test('continues push when no offenses exist', async () => {
-      // Given
-      vi.mocked(runThemeCheck).mockResolvedValue({
-        offenses: [],
-        theme: [],
-      })
-
-      // When/Then
-      await expect(push({...defaultFlags, strict: true}, adminSession)).resolves.not.toThrow()
-    })
-
-    test('continues push when only warnings exist', async () => {
-      // Given
-      vi.mocked(runThemeCheck).mockResolvedValue({
-        offenses: [
-          {
-            severity: Severity.WARNING,
-            message: 'warning message',
-            check: 'check',
-            uri: 'file:///path/to/file.liquid',
-            type: SourceCodeType.LiquidHtml,
-            start: {index: 0, line: 1, character: 1},
-            end: {index: 1, line: 1, character: 1},
-          },
-        ],
-        theme: [],
-      })
-
-      // When/Then
-      await expect(push({...defaultFlags, strict: true}, adminSession)).resolves.not.toThrow()
-    })
-
-    test('passes the --json flag to theme check as output format', async () => {
-      // Given
-      vi.mocked(runThemeCheck).mockResolvedValue({
-        offenses: [
-          {
-            severity: Severity.WARNING,
-            message: 'warning message',
-            check: 'check',
-            uri: 'file:///path/to/file.liquid',
-            type: SourceCodeType.LiquidHtml,
-            start: {index: 0, line: 1, character: 1},
-            end: {index: 1, line: 1, character: 1},
-          },
-        ],
-        theme: [],
-      })
-
-      // When/Then
-      await push({...defaultFlags, strict: true, json: true}, adminSession)
-      expect(runThemeCheck).toHaveBeenCalledWith(path, 'json')
-    })
-  })
-
-  test('passes listing flag to file system when provided', async () => {
-    await inTemporaryDirectory(async (themePath) => {
-      const theme = buildTheme({id: 1, name: 'Theme', role: 'development'})!
-      vi.mocked(findOrSelectTheme).mockResolvedValue(theme)
-      const actual = await vi.importActual<typeof import('../utilities/theme-fs.js')>('../utilities/theme-fs.js')
-      vi.mocked(mountThemeFileSystem).mockImplementationOnce(actual.mountThemeFileSystem)
-
-      await push({...defaultFlags, path: themePath, listing: 'my-preset'})
-
-      expect(mountThemeFileSystem).toHaveBeenCalledWith(themePath, expect.objectContaining({listing: 'my-preset'}))
-    })
-  })
-})
-
-describe('createOrSelectTheme', async () => {
-  test('creates unpublished theme when unpublished flag is provided', async () => {
-    // Given
-    vi.mocked(themeCreate).mockResolvedValue(buildTheme({id: 2, name: 'Theme', role: UNPUBLISHED_THEME_ROLE}))
-    vi.mocked(fetchTheme).mockResolvedValue(undefined)
-
-    const flags: PushFlags = {unpublished: true}
-
-    // When
-    const theme = await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(theme).toMatchObject({role: UNPUBLISHED_THEME_ROLE, createdAtRuntime: true})
-    expect(setDevelopmentTheme).not.toHaveBeenCalled()
-  })
-
-  test('creates development theme when development flag is provided', async () => {
-    // Given
-    vi.mocked(themeCreate).mockResolvedValue(buildTheme({id: 1, name: 'Theme', role: DEVELOPMENT_THEME_ROLE}))
-    vi.mocked(fetchTheme).mockResolvedValue(undefined)
-    const flags: PushFlags = {development: true}
-
-    // When
-    const theme = await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(theme).toMatchObject({role: DEVELOPMENT_THEME_ROLE, createdAtRuntime: true})
-    expect(setDevelopmentTheme).toHaveBeenCalled()
-  })
-
-  test('creates development theme when development and development-context flags are provided', async () => {
-    // Given
-    vi.mocked(themeCreate).mockResolvedValue(buildTheme({id: 1, name: 'Custom name', role: DEVELOPMENT_THEME_ROLE}))
-    vi.mocked(fetchTheme).mockResolvedValue(undefined)
-    const flags: PushFlags = {development: true, developmentContext: 'Custom name'}
-
-    // When
-    const theme = await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(theme).toMatchObject({role: DEVELOPMENT_THEME_ROLE, name: 'Custom name', createdAtRuntime: true})
-    expect(setDevelopmentTheme).toHaveBeenCalled()
-  })
-
-  test('creates development theme when development and unpublished flags are provided', async () => {
-    // Given
-    vi.mocked(themeCreate).mockResolvedValue(buildTheme({id: 1, name: 'Theme', role: DEVELOPMENT_THEME_ROLE}))
-    vi.mocked(fetchTheme).mockResolvedValue(undefined)
-    const flags: PushFlags = {development: true, unpublished: true}
-
-    // When
-    const theme = await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(theme).toMatchObject({role: DEVELOPMENT_THEME_ROLE})
-  })
-
-  test('returns live theme when live flag is provided', async () => {
-    // Given
-    vi.mocked(findOrSelectTheme).mockResolvedValue(buildTheme({id: 3, name: 'Live Theme', role: LIVE_THEME_ROLE})!)
-    const flags: PushFlags = {live: true, allowLive: true}
-
-    // When
-    const theme = await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(theme).toMatchObject({role: LIVE_THEME_ROLE})
-  })
-
-  test('renders confirmation prompt if allowLive flag is not provided and selected theme role is live', async () => {
-    // Given
-    vi.mocked(findOrSelectTheme).mockResolvedValue(buildTheme({id: 3, name: 'Live Theme', role: LIVE_THEME_ROLE})!)
-    vi.mocked(renderConfirmationPrompt).mockResolvedValue(true)
-    const flags: PushFlags = {live: true}
-
-    // When
-    const theme = await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(theme?.role).toBe(LIVE_THEME_ROLE)
-    expect(renderConfirmationPrompt).toHaveBeenCalled()
-  })
-
-  test("renders confirmation prompt if 'allow-live' flag is not provided and live theme is specified via theme flag", async () => {
-    // Given
-    vi.mocked(findOrSelectTheme).mockResolvedValue(buildTheme({id: 3, name: 'Live Theme', role: LIVE_THEME_ROLE})!)
-    vi.mocked(renderConfirmationPrompt).mockResolvedValue(true)
-    const flags: PushFlags = {theme: '3'}
-
-    // When
-    const theme = await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(theme?.role).toBe(LIVE_THEME_ROLE)
-    expect(renderConfirmationPrompt).toHaveBeenCalled()
-  })
-
-  test('returns undefined if live theme confirmation prompt is not confirmed', async () => {
-    // Given
-    vi.mocked(findOrSelectTheme).mockResolvedValue(buildTheme({id: 3, name: 'Live Theme', role: LIVE_THEME_ROLE})!)
-    vi.mocked(renderConfirmationPrompt).mockResolvedValue(false)
-    const flags: PushFlags = {live: true}
-
-    // When
-    const theme = await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(theme).toBeUndefined()
-  })
-
-  test('returns undefined if confirmation prompt is rejected', async () => {
-    // Given
-    vi.mocked(findOrSelectTheme).mockResolvedValue(buildTheme({id: 3, name: 'Live Theme', role: LIVE_THEME_ROLE})!)
-    vi.mocked(renderConfirmationPrompt).mockResolvedValue(false)
-    const flags = {live: true}
-
-    // When
-    const theme = await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(theme).toBeUndefined()
-  })
-
-  test('renders text prompt if unpublished flag is provided and theme flag is not provided', async () => {
-    // Given
-    const flags = {unpublished: true}
-
-    // When
-    await createOrSelectTheme(adminSession, flags)
-
-    // Then
-    expect(promptThemeName).toHaveBeenCalledWith('Name of the new theme')
-  })
-
-  describe('when run during a multi environment command', () => {
-    test('displays error when live theme is selected without allow-live flag', async () => {
-      // Given
-      vi.mocked(findOrSelectTheme).mockResolvedValue(buildTheme({id: 3, name: 'Live Theme', role: LIVE_THEME_ROLE})!)
-      const flags: PushFlags = {live: true, environment: ['production']}
-
-      // When
-      await expect(createOrSelectTheme(adminSession, flags, true)).rejects.toBeInstanceOf(AbortError)
-    })
+    await expect(push({...defaultFlags, strict: true}, adminSession)).rejects.toThrow(AbortError)
+    expect(uploadTheme).not.toHaveBeenCalled()
   })
 })

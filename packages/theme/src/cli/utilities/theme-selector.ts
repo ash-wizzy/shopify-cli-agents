@@ -1,5 +1,5 @@
 import {Filter, FilterProps, filterThemes} from './theme-selector/filter.js'
-import {fetchStoreThemes} from './theme-selector/fetch.js'
+import {fetchStoreThemes, type Role} from './theme-selector/fetch.js'
 import {getDevelopmentTheme} from '../services/local-storage.js'
 import {renderAutocompletePrompt} from '@shopify/cli-kit/node/ui'
 import {AdminSession} from '@shopify/cli-kit/node/session'
@@ -25,6 +25,8 @@ interface FindOrSelectOptions {
    * The filter applied in the list of themes in the store.
    */
   filter: FilterProps
+  /** Restrict interactive selection and direct theme ID/name matches. */
+  allowedRoles?: Role[]
 }
 
 /**
@@ -35,7 +37,9 @@ interface FindOrSelectOptions {
  * @returns the selected {@link Theme}
  */
 export async function findOrSelectTheme(session: AdminSession, options: FindOrSelectOptions) {
-  const themes = await fetchStoreThemes(session)
+  const themes = (await fetchStoreThemes(session)).filter(
+    (theme) => !options.allowedRoles || options.allowedRoles.includes(theme.role as Role),
+  )
   const filter = new Filter(options.filter)
   const store = session.storeFqdn
 

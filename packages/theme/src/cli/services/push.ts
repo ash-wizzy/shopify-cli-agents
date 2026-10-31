@@ -5,19 +5,16 @@ import {uploadTheme} from '../utilities/theme-uploader.js'
 import {ensureDirectoryConfirmed} from '../utilities/theme-ui.js'
 import {DevelopmentThemeManager} from '../utilities/development-theme-manager.js'
 import {findOrSelectTheme} from '../utilities/theme-selector.js'
-import {Role} from '../utilities/theme-selector/fetch.js'
+import {assertAgentSafePushFlags, assertUnpublishedTheme, assertUnpublishedSelectedTheme} from './agent-push-policy.js'
 import {configureCLIEnvironment} from '../utilities/cli-config.js'
 import {ensureThemeStore} from '../utilities/theme-store.js'
 import {ensureListingExists, getListingFilePath} from '../utilities/theme-listing.js'
 import {AdminSession, ensureAuthenticatedThemes} from '@shopify/cli-kit/node/session'
-import {themeCreate, fetchChecksums, themePublish} from '@shopify/cli-kit/node/themes/api'
+import {themeCreate, fetchChecksums} from '@shopify/cli-kit/node/themes/api'
 import {Theme} from '@shopify/cli-kit/node/themes/types'
-import {renderConfirmationPrompt, RenderConfirmationPromptOptions} from '@shopify/cli-kit/node/ui'
 import {themeEditorUrl, themePreviewUrl} from '@shopify/cli-kit/node/themes/urls'
 import {cwd, resolvePath} from '@shopify/cli-kit/node/path'
 import {
-  DEVELOPMENT_THEME_ROLE,
-  LIVE_THEME_ROLE,
   promptThemeName,
   UNPUBLISHED_THEME_ROLE,
 } from '@shopify/cli-kit/node/themes/utils'
@@ -115,6 +112,8 @@ export async function executeThemePush(
   multiEnvironment?: boolean,
   context?: {stdout?: Writable; stderr?: Writable},
 ) {
+  assertAgentSafePushFlags(flags)
+
   const environment = flags.environment?.[0]
 
   // when push is used programmatically, we don't have an admin session, so need to create one
@@ -181,6 +180,8 @@ async function executePush(
   options: PushOptions,
   context?: {stdout?: Writable; stderr?: Writable},
 ) {
+  assertUnpublishedSelectedTheme(theme)
+  await assertUnpublishedTheme(theme.id, session)
   recordTiming('theme-service:push:file-system')
   const themeChecksums = await fetchChecksums(theme.id, session)
   const themeFileSystem = mountThemeFileSystem(options.path, {
@@ -203,14 +204,17 @@ async function executePush(
     )
   }
 
-  const upload = uploadTheme(theme, session, themeChecksums, themeFileSystem, options, context)
+  const upload = uploadTheme(
+    theme,
+    session,
+    themeChecksums,
+    themeFileSystem,
+    {...options, assertCanWrite: () => assertUnpublishedTheme(theme.id, session)},
+    context,
+  )
 
   await upload.renderThemeSyncProgress()
   const {uploadResults} = upload
-
-  if (options.publish) {
-    await themePublish(theme.id, session)
-  }
 
   const errors: Record<string, string[]> = {}
   for (const [key, result] of uploadResults) {
@@ -247,69 +251,25 @@ async function executePush(
 export async function createOrSelectTheme(
   session: AdminSession,
   flags: PushFlags,
-  multiEnvironment?: boolean,
+  _multiEnvironment?: boolean,
 ): Promise<Theme | undefined> {
-  const {live, development, unpublished, theme, environment, developmentContext} = flags
-
-  if (development) {
-    const themeManager = new DevelopmentThemeManager(session)
-    return themeManager.findOrCreate(developmentContext, DEVELOPMENT_THEME_ROLE)
-  } else if (unpublished) {
-    const themeName = theme ?? (await promptThemeName('Name of the new theme'))
-    const createdTheme = await themeCreate(
-      {
-        name: themeName,
-        role: UNPUBLISHED_THEME_ROLE,
-      },
-      session,
-    )
-    return createdTheme ? {...createdTheme, createdAtRuntime: true} : undefined
-  } else {
-    const selectedTheme = await findOrSelectTheme(session, {
-      create: true,
-      header: 'Select a theme to push to:',
-      filter: {
-        live,
-        theme,
-      },
-    })
-
-    const confirmed = await confirmPushToTheme(
-      selectedTheme.role as Role,
-      flags.allowLive,
-      session.storeFqdn,
-      environment,
-      multiEnvironment,
-    )
-    return confirmed ? selectedTheme : undefined
+  assertAgentSafePushFlags(flags)
+  const {unpublished, theme} = flags
+  if (unpublished) {
+    const themeName = theme ?? (await promptThemeName('Name of the new unpublished theme'))
+    const created = await themeCreate({name: themeName, role: UNPUBLISHED_THEME_ROLE}, session)
+    if (created) assertUnpublishedSelectedTheme(created)
+    return created ? {...created, createdAtRuntime: true} : undefined
   }
-}
 
-async function confirmPushToTheme(
-  themeRole: Role,
-  allowLive: boolean | undefined,
-  storeFqdn: string,
-  _environment?: string[],
-  multiEnvironment?: boolean,
-) {
-  if (themeRole === LIVE_THEME_ROLE) {
-    if (allowLive) {
-      return true
-    }
-
-    if (multiEnvironment) {
-      throw new AbortError(`Can't push theme files to the live theme on ${storeFqdn}. Use the --allow-live flag.`)
-    }
-
-    const options: RenderConfirmationPromptOptions = {
-      message: `Push theme files to the ${themeRole} theme on ${storeFqdn}?`,
-      confirmationMessage: 'Yes, confirm changes',
-      cancellationMessage: 'Cancel',
-    }
-
-    return renderConfirmationPrompt(options)
-  }
-  return true
+  const selected = await findOrSelectTheme(session, {
+    create: true,
+    header: 'Select an unpublished theme to push to:',
+    filter: {theme},
+    allowedRoles: [UNPUBLISHED_THEME_ROLE],
+  })
+  if (selected) assertUnpublishedSelectedTheme(selected)
+  return selected
 }
 
 /** Compatibility adapter for callers of the exported theme API. */
@@ -319,6 +279,8 @@ export async function push(
   multiEnvironment?: boolean,
   context?: {stdout?: Writable; stderr?: Writable},
 ): Promise<void> {
+  assertAgentSafePushFlags(flags)
+
   const session =
     adminSession ?? (await ensureAuthenticatedThemes(ensureThemeStore({store: flags.store}), flags.password))
   await checkThemeBeforePush(flags, true)

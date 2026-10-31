@@ -138,7 +138,7 @@ pluginPluginsCommands.forEach((command) => {
 })
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const COMMANDS: any = {
+const ALL_COMMANDS: any = {
   ...AppCommands,
   ...ThemeCommands,
   ...PluginPluginsCommands,
@@ -170,5 +170,24 @@ export const COMMANDS: any = {
   'config:autoupgrade:on': AutoupgradeOn,
   'config:autoupgrade:status': AutoupgradeStatus,
 }
+
+// AGENT POLICY: explicit read/local command allowlist.
+// Never add remote write commands here.
+const AGENT_ALLOWED_COMMANDS = new Set([
+  'help',
+  'version',
+  'theme:init',
+  'theme:check',
+  'theme:language-server',
+  'theme:package',
+  'theme:list',
+  'theme:info',
+  'theme:pull',
+  'theme:push',
+])
+
+export const COMMANDS: any = Object.fromEntries(
+  Object.entries(ALL_COMMANDS).filter(([command]) => AGENT_ALLOWED_COMMANDS.has(command)),
+)
 
 export default runShopifyCLI
