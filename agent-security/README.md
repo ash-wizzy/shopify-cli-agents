@@ -4,7 +4,7 @@ This repository is **public**. All push changes require regression tests and an 
 
 ## V0: safe theme operations
 
-- **Allowed:** `auth login`, `auth logout`, `store list` (read-only), `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, `theme push` to Shopify-confirmed **unpublished** themes, `help` and `version`.
+- **Allowed:** `auth login`, `auth logout`, `store list` (read-only), `organization list` (read-only), `theme init`, `theme check`, `theme language-server`, `theme package`, `theme list`, `theme info`, `theme pull`, `theme push` to Shopify-confirmed **unpublished** themes, `help` and `version`.
 - **Disabled:** `theme publish`, `theme dev`, `theme share`, `theme delete`, `theme rename`, `theme duplicate`, `theme preview`, all app commands and store-management commands other than `store list`, plugin commands, upgrade shortcuts, and push options selecting a live/development theme or publishing.
 - The theme push service validates unsafe flags before authentication; its interactive picker shows only unpublished themes; it fetches a fresh role before sync and before every file mutation batch (including retries).
 - The static policy checker fails if command registration, the generated manifest or push guards are altered. Unit tests exercise draft selection and flag/role denials.
@@ -28,6 +28,7 @@ node packages/cli/bin/run.js theme push --help    # should be available
 node packages/cli/bin/run.js auth login --help     # should be available
 node packages/cli/bin/run.js auth logout --help    # should be available
 node packages/cli/bin/run.js store list --help     # should be available
+node packages/cli/bin/run.js organization list --help # should be available
 corepack pnpm exec vitest run packages/theme/src/cli/services/agent-push-policy.test.ts
 ```
 

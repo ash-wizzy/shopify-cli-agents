@@ -165,6 +165,71 @@
       "strict": false,
       "usage": "help [command] [flags]"
     },
+    "organization:list": {
+      "aliases": [],
+      "args": {},
+      "customPluginName": "@shopify/app",
+      "description": "Lists the Shopify organizations that you have access to, along with their organization IDs.\n\nUse `--json-schema` to print the result, error, and event schemas.\n\nOutput from `--json` conforms to the `OrganizationListResult` schema.\n\n```json\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"organizations\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"$ref\": \"#/definitions/OrganizationListEntry\"\n      }\n    }\n  },\n  \"required\": [\n    \"organizations\"\n  ],\n  \"additionalProperties\": false,\n  \"title\": \"OrganizationListResult\",\n  \"definitions\": {\n    \"OrganizationListEntry\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"id\": {\n          \"type\": \"string\"\n        },\n        \"gid\": {\n          \"type\": \"string\"\n        },\n        \"name\": {\n          \"type\": \"string\"\n        },\n        \"status\": {\n          \"type\": \"string\",\n          \"enum\": [\n            \"ACTIVE\",\n            \"LOCKED\"\n          ]\n        },\n        \"shopCount\": {\n          \"type\": [\n            \"number\",\n            \"null\"\n          ]\n        },\n        \"url\": {\n          \"type\": \"string\"\n        }\n      },\n      \"required\": [\n        \"id\",\n        \"gid\",\n        \"name\",\n        \"status\",\n        \"shopCount\",\n        \"url\"\n      ],\n      \"additionalProperties\": false\n    }\n  },\n  \"$schema\": \"http://json-schema.org/draft-07/schema#\"\n}\n```",
+      "descriptionWithMarkdown": "Lists the Shopify organizations that you have access to, along with their organization IDs.",
+      "enableJsonFlag": false,
+      "flags": {
+        "auth-alias": {
+          "description": "Alias of the Shopify account to use for authentication.",
+          "env": "SHOPIFY_FLAG_AUTH_ALIAS",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "name": "auth-alias",
+          "type": "option"
+        },
+        "json": {
+          "allowNo": false,
+          "char": "j",
+          "description": "Output the result as JSON. Automatically disables color output.",
+          "env": "SHOPIFY_FLAG_JSON",
+          "hidden": false,
+          "name": "json",
+          "type": "boolean"
+        },
+        "json-schema": {
+          "allowNo": false,
+          "description": "Print the command's JSON schemas.",
+          "env": "SHOPIFY_FLAG_JSON_SCHEMA",
+          "name": "json-schema",
+          "type": "boolean"
+        },
+        "no-color": {
+          "allowNo": false,
+          "description": "Disable color output.",
+          "env": "SHOPIFY_FLAG_NO_COLOR",
+          "hidden": false,
+          "name": "no-color",
+          "type": "boolean"
+        },
+        "no-input": {
+          "allowNo": false,
+          "description": "Disable interactive prompts and browser authentication.",
+          "env": "SHOPIFY_FLAG_NO_INPUT",
+          "name": "no-input",
+          "type": "boolean"
+        },
+        "verbose": {
+          "allowNo": false,
+          "description": "Increase the verbosity of the output. May include sensitive data.",
+          "env": "SHOPIFY_FLAG_VERBOSE",
+          "hidden": false,
+          "name": "verbose",
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "organization:list",
+      "pluginAlias": "@shopify/cli",
+      "pluginName": "@shopify/cli",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "List Shopify organizations you have access to."
+    },
     "store:list": {
       "aliases": [],
       "args": {},
