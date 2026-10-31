@@ -36,6 +36,21 @@ jobs:
           corepack pnpm install --frozen-lockfile
       - name: Build CLI
         run: corepack pnpm nx build cli
+      - name: Type-check theme and CLI
+        run: corepack pnpm nx run-many -t type-check -p theme cli
+      - name: Lint agent-modified TypeScript
+        shell: bash
+        run: |
+          corepack pnpm exec eslint \
+            packages/cli/src/index.ts \
+            packages/theme/src/index.ts \
+            packages/theme/src/cli/services/push.ts \
+            packages/theme/src/cli/services/push.test.ts \
+            packages/theme/src/cli/services/agent-push-policy.ts \
+            packages/theme/src/cli/services/agent-push-policy.test.ts \
+            packages/theme/src/cli/utilities/theme-selector.ts \
+            packages/theme/src/cli/utilities/theme-selector.test.ts \
+            packages/theme/src/cli/utilities/theme-uploader.ts
       - name: Run unpublished-only policy regression tests
         run: corepack pnpm exec vitest run packages/theme/src/cli/services/agent-push-policy.test.ts packages/theme/src/cli/services/push.test.ts packages/theme/src/cli/utilities/theme-selector.test.ts
       - name: Allow only approved commands in compiled CLI
