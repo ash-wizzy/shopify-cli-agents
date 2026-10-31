@@ -28,7 +28,6 @@ const defaultFlags: PushFlags = {path: '/my-theme', theme: '42'}
 
 describe('agent-only theme push service', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
     vi.mocked(findOrSelectTheme).mockResolvedValue(draft)
     vi.mocked(fetchTheme).mockResolvedValue(draft)
     vi.mocked(fetchChecksums).mockResolvedValue([])
@@ -47,8 +46,8 @@ describe('agent-only theme push service', () => {
     expect(fetchTheme).toHaveBeenCalledWith(42, adminSession)
     expect(uploadTheme).toHaveBeenCalledTimes(1)
     const [, , , , options] = vi.mocked(uploadTheme).mock.calls[0]!
-    expect(options.assertCanWrite).toBeTypeOf('function')
-    await options.assertCanWrite!()
+    expect(options!.assertCanWrite).toBeTypeOf('function')
+    await options!.assertCanWrite!()
     expect(fetchTheme).toHaveBeenCalledTimes(2)
     expect(themePublish).not.toHaveBeenCalled()
   })
