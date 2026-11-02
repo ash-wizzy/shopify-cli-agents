@@ -1,21 +1,7 @@
 name: Release
 
 on:
-  # Trigger for snapit functionality
-  issue_comment:
-    types:
-      - created
-
-  # Trigger for changeset release functionality
-  push:
-    branches:
-      - main
-      - stable/*
-
-  # Trigger for manual/cron release functionality
-  schedule:
-    - cron: '0 6 * * *' # 6:00 AM UTC every day
-
+  # Deliberately manual-only in the agent fork. No inherited release on push or cron.
   workflow_dispatch:
     inputs:
       tag:
